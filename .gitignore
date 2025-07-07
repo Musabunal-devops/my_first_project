@@ -1,0 +1,41 @@
+# Operating System files
+.DS_Store # macOS specific files
+Thumbs.db # Windows thumbnail cache
+
+# Python Compiled Files
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+.pytest_cache/ # pytest cache directory
+.mypy_cache/   # MyPy type checker cache
+
+# Virtual Environments
+.venv/         # Hidden virtual environment directory (often used by Poetry or venv)
+venv/          # Common virtual environment directory name
+env/           # Alternative virtual environment directory name
+*/.venv/       # Hidden virtual environments in subdirectories
+
+# Poetry Specific (if used)
+.python-version # File indicating Python version (used by pyenv or Poetry in some setups)
+
+# Database and Log Files
+*.sqlite3 # Default Django SQLite database files
+db.sqlite3
+*.log
+logs/
+
+# Environment Variables and Sensitive Information (ABSOLUTELY MUST NOT BE COMMITTED TO GIT!)
+.env           # Environment variable files (e.g., for Django SECRET_KEY)
+.env.*
+config.ini
+*.pem          # Private key files
+*.key          # Private key files
+*.json         # JSON files potentially containing API keys or sensitive data
+/media/        # User-uploaded files (common for Django projects)
+/static_root/  # Directory where Django collects static files for deployment
+
+# IDE Files (if you're using them)
+.idea/         # IntelliJ / PyCharm project files
+.vscode/       # VS Code workspace files
+*.iml          # IntelliJ / PyCharm module files
