@@ -30,6 +30,7 @@
         .form-group {
             margin-bottom: 15px;
             text-align: left;
+            /* position: relative; /* Göz ikonu için artık buna ihtiyacımız yok, container kullanacağız */
         }
         label {
             display: block;
@@ -37,17 +38,40 @@
             color: #555;
             font-weight: bold;
         }
+
+        /* YENİ: Input ve ikon için sarmalayıcı (wrapper) */
+        .input-wrapper {
+            position: relative; /* İkonu bu wrapper içinde konumlandıracağız */
+            display: flex; /* İçindeki elemanları (input ve ikon) hizalamak için */
+            align-items: center; /* Dikeyde ortalama */
+        }
+
         input[type="text"],
         input[type="email"],
         input[type="password"] {
-            width: calc(100% - 20px);
-            padding: 10px;
+            flex-grow: 1; /* Input'un mevcut alanı doldurmasını sağlar */
+            padding: 12px 10px; /* Üst/alt padding 12px, sol/sağ padding 10px */
+            /* padding-right: 40px; /* İkon için sağdan boşluk - Artık input-wrapper'daki padding ile hallediyoruz */
             border: 1px solid #ddd;
             border-radius: 4px;
-            box-sizing: border-box; /* Padding'i genişliğe dahil et */
+            box-sizing: border-box;
+            /* YENİ: İkonun üzerine binmemesi için kendi padding'i */
+            padding-right: 40px; /* İkonun üzerine binmemesi için */
+        }
+        .toggle-password {
+            position: absolute; /* Wrapper'a göre mutlak konumlandırma */
+            right: 15px; /* Sağdan uzaklık */
+            /* top: 50%; /* Artık flexbox ile hizalandığı için bu kadar kritik değil */
+            /* transform: translateY(-50%); /* Flexbox align-items ile de ortalandığı için buna da gerek kalmıyor */
+            cursor: pointer;
+            color: #888;
+            user-select: none;
+            font-size: 1.2em;
+            /* İNCE AYAR: Gerekirse 1-2 piksel aşağı çekmek için - artık daha az gerekli */
+            /* margin-top: 2px; */
         }
         button {
-            background-color: #28a745; /* Yeşil tonu */
+            background-color: #28a745;
             color: white;
             padding: 12px 20px;
             border: none;
@@ -70,12 +94,18 @@
         .back-link:hover {
             text-decoration: underline;
         }
+        .error-message {
+            color: red;
+            font-size: 0.9em;
+            margin-top: 5px;
+            text-align: left;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Yeni Hesap Oluştur</h1>
-        <form method="POST" action="{{ url_for('register_post') }}">
+        <form method="POST" action="{{ url_for('register_post') }}" onsubmit="return validateForm()">
             <div class="form-group">
                 <label for="first_name">İsim:</label>
                 <input type="text" id="first_name" name="first_name" required>
@@ -90,11 +120,47 @@
             </div>
             <div class="form-group">
                 <label for="password">Şifre:</label>
-                <input type="password" id="password" name="password" required>
+                <div class="input-wrapper"> {# YENİ: Input ve ikonu sarmalayan div #}
+                    <input type="password" id="password" name="password" required>
+                    <span class="toggle-password" onclick="togglePasswordVisibility('password')">&#128065;</span> {# Göz ikonu #}
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="confirm_password">Şifreyi Tekrar Girin:</label>
+                <div class="input-wrapper"> {# YENİ: Input ve ikonu sarmalayan div #}
+                    <input type="password" id="confirm_password" name="confirm_password" required>
+                    <span class="toggle-password" onclick="togglePasswordVisibility('confirm_password')">&#128065;</span> {# Göz ikonu #}
+                </div>
+                <div id="password_match_error" class="error-message" style="display: none;">Şifreler uyuşmuyor!</div>
             </div>
             <button type="submit">Hesap Oluştur</button>
         </form>
         <a href="{{ url_for('index') }}" class="back-link">Ana Sayfaya Geri Dön</a>
     </div>
+
+    <script>
+        function togglePasswordVisibility(id) {
+            const input = document.getElementById(id);
+            if (input.type === "password") {
+                input.type = "text";
+            } else {
+                input.type = "password";
+            }
+        }
+
+        function validateForm() {
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+            const passwordMatchError = document.getElementById('password_match_error');
+
+            if (password !== confirmPassword) {
+                passwordMatchError.style.display = 'block';
+                return false; // Formun gönderilmesini engelle
+            } else {
+                passwordMatchError.style.display = 'none';
+                return true; // Formun gönderilmesine izin ver
+            }
+        }
+    </script>
 </body>
 </html>
