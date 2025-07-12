@@ -41,6 +41,33 @@ def upload_file():
         return "CV'niz başarıyla yüklendi! Şimdilik sadece bu mesaj var, yakında daha fazlası gelecek."
     else:
         return "Geçersiz dosya formatı. Lütfen PDF, DOC veya DOCX formatında bir dosya yükleyin."
+@app.route('/register') # Yeni kayıt sayfası rotası
+def register():
+    """Kullanıcı kayıt formunu gösterir."""
+    return render_template('register.html') # Yeni oluşturacağımız HTML dosyasını döndür
+
+@app.route('/register_post', methods=['POST']) # Kayıt formundan gelen verileri işleyecek rota
+def register_post():
+    """Kayıt formundan gelen verileri alır ve işler."""
+    # Form verilerine request.form ile erişebilirsiniz
+    first_name = request.form['first_name']
+    last_name = request.form['last_name']
+    email = request.form['email']
+    password = request.form['password']
+
+    # Şimdilik sadece bu bilgileri konsola yazdıralım
+    # Gerçek bir uygulamada bu bilgileri veritabanına kaydetmeniz gerekir.
+    print(f"Yeni Kullanıcı Kaydı:")
+    print(f"İsim: {first_name}")
+    print(f"Soyisim: {last_name}")
+    print(f"Email: {email}")
+    print(f"Şifre (Hashlenmeden Önce): {password}") # Şifreleri doğrudan saklamayın, mutlaka hashleyin!
+
+    # Kayıt başarılı olduktan sonra kullanıcıyı bir sayfaya yönlendirebiliriz
+    # Örneğin, ana sayfaya veya bir başarı mesajı sayfasına
+    return redirect(url_for('index')) # Şimdilik ana sayfaya yönlendiriyoruz
+
+# YENİ EKLENECEK KODLAR BURADA BİTİYOR
 
 if __name__ == '__main__':
     app.run(debug=True) # Uygulamayı hata ayıklama modunda çalıştır
