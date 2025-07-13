@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CV Advice Sitesine Hoş Geldiniz!</title>
+    <title>Welcome to the CV Advice Site!</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #e0f7fa; /* Açık mavi arka plan */
+            background-color: #e0f7fa; /* Light blue background */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -24,7 +24,7 @@
             width: 90%;
         }
         h1 {
-            color: #007bff; /* Mavi başlık */
+            color: #007bff; /* Blue heading */
             font-size: 2.5em;
             margin-bottom: 20px;
         }
@@ -38,7 +38,7 @@
             margin-top: 30px;
             display: flex;
             justify-content: center;
-            gap: 20px; /* Butonlar arası boşluk */
+            gap: 20px; /* Space between buttons */
         }
         .button {
             padding: 15px 30px;
@@ -47,12 +47,12 @@
             cursor: pointer;
             font-size: 1.1em;
             font-weight: bold;
-            text-decoration: none; /* Link olduğu için alt çizgiyi kaldırırız */
-            display: inline-block; /* Margin ve padding için */
+            text-decoration: none; /* Remove underline for links */
+            display: inline-block; /* For margin and padding */
             transition: background-color 0.3s ease, transform 0.2s ease;
         }
         .button.primary {
-            background-color: #007bff; /* Mavi buton */
+            background-color: #007bff; /* Blue button */
             color: white;
         }
         .button.primary:hover {
@@ -60,7 +60,7 @@
             transform: translateY(-2px);
         }
         .button.success {
-            background-color: #28a745; /* Yeşil buton */
+            background-color: #28a745; /* Green button */
             color: white;
         }
         .button.success:hover {
@@ -71,12 +71,12 @@
 </head>
 <body>
     <div class="container">
-        <h1>CV Advice Sitesine Hoş Geldiniz!</h1>
-        <p>Burada CV'nizi yükleyebilir, düzenleyebilir ve diğer kullanıcılardan değerli geri bildirimler alabilirsiniz. Kariyer yolculuğunuzda size yardımcı olmak için buradayız.</p>
-        <p>Giriş yapmak veya yeni bir hesap oluşturmak için lütfen aşağıdaki seçeneklerden birini seçin:</p>
+        <h1>Welcome to the CV Advice Site!</h1>
+        <p>Here you can upload and edit your CV, and receive valuable feedback from other users. We are here to help you on your career journey.</p>
+        <p>To log in or create a new account, please choose one of the options below:</p>
         <div class="button-group">
-            <a href="#" class="button primary">Giriş Yap</a> {# Şimdilik boş bırakıyoruz, sonra login sayfası ekleriz #}
-            <a href="{{ url_for('register') }}" class="button success">Hesap Oluştur</a> {# Burayı güncelledik! #}
+            <a href="#" class="button primary">Log In</a> {# Leaving this empty for now, will add login page later #}
+            <a href="{{ url_for('register') }}" class="button success">Create Account</a> {# Updated this! #}
         </div>
     </div>
 </body>
