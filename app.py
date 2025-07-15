@@ -2,9 +2,9 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
+# from flask_mail import Mail, Message # KALDIRILDI: Flask-Mail artık kullanılmıyor
 
 app = Flask(__name__)
-
 # --- Configuration ---
 app.config['UPLOAD_FOLDER'] = 'uploads/'  # Folder where uploaded files will be saved
 app.config['ALLOWED_EXTENSIONS'] = {'pdf', 'doc', 'docx'}  # Allowed file extensions
@@ -14,42 +14,47 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # To suppress a warning
 # SECRET_KEY is essential for security. CHANGE THIS TO A LONG, RANDOM STRING!
 app.config['SECRET_KEY'] = 'your_secret_key_here_change_this_to_a_long_random_string'
 
+# KALDIRILDI: Flask-Mail Configuration bloğu
+# app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+# app.config['MAIL_PORT'] = 587
+# app.config['MAIL_USE_TLS'] = True
+# app.config['MAIL_USE_SSL'] = False
+# app.config['MAIL_USERNAME'] = 'senin_eposta_adresin@gmail.com'
+# app.config['MAIL_PASSWORD'] = 'senin_eposta_sifren_veya_uygulama_sifren'
+# app.config['MAIL_DEFAULT_SENDER'] = 'senin_eposta_adresin@gmail.com'
+
+
 # --- Initialize Database ---
 db = SQLAlchemy(app) # Initialize SQLAlchemy with your Flask app
+# mail = Mail(app)     # KALDIRILDI: Flask-Mail nesnesinin başlatılması
 
 # --- Create 'uploads' folder if it doesn't exist ---
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
 
 # --- Database Model Definition ---
-# This class defines the 'user' table in your PostgreSQL database
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(512), nullable=False)
     last_name = db.Column(db.String(512), nullable=False)
-    email = db.Column(db.String(512), unique=True, nullable=False)
-    password_hash = db.Column(db.String(512), nullable=False) # Stores the hashed password
+    email = db.Column(db.String(512), unique=True, nullable=False) # unique=True'yu geri almadık, çünkü önceki talebiniz buydu.
+    password_hash = db.Column(db.String(512), nullable=False)
 
     def set_password(self, password):
-        """Hashes the given password and stores it."""
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
-        """Checks if the given password matches the stored hash."""
         return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
         return f'<User {self.email}>'
 
 # --- Create Database Tables (Run only once or when models change) ---
-# This ensures tables are created when the app starts if they don't exist.
-# In a production environment, consider using Flask-Migrate for migrations.
 with app.app_context():
     db.create_all()
 
 # --- Helper Function ---
 def allowed_file(filename):
-    """Checks if the file extension is in the allowed list."""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
@@ -57,7 +62,6 @@ def allowed_file(filename):
 
 @app.route('/')
 def index():
-    """Home page - Shows welcome message, login, and registration options."""
     return render_template('index.html')
 
 @app.route('/upload_cv_page')
@@ -66,7 +70,6 @@ def upload_cv_page():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    """Handles the CV upload process."""
     if 'file' not in request.files:
         flash('No file part')
         return redirect(request.url)
@@ -88,43 +91,52 @@ def upload_file():
 
 @app.route('/register')
 def register():
-    """Displays the user registration form."""
     return render_template('register.html')
 
 @app.route('/register_post', methods=['POST'])
 def register_post():
-    """Receives and processes data from the registration form."""
     first_name = request.form['first_name']
     last_name = request.form['last_name']
     email = request.form['email']
     password = request.form['password']
-    confirm_password = request.form['confirm_password'] # Assuming your register.html has a confirm_password field
+    confirm_password = request.form['confirm_password']
 
     # --- Validation and Database Logic ---
     if password != confirm_password:
         flash('Passwords do not match! Please try again.')
         return redirect(url_for('register'))
 
-    # Check if a user with this email already exists
-    existing_user = User.query.filter_by(email=email).first()
-    if existing_user:
-        flash('An account with this email already exists. Please use a different email or log in.')
-        return redirect(url_for('register'))
+    # Daha önce aynı e-posta ile kayıt olma opsiyonunu açmak için yorum satırı yaptığımız kısım:
+    # existing_user = User.query.filter_by(email=email).first()
+    # if existing_user:
+    #    flash('An account with this email already exists. Please use a different email or log in.')
+    #    return redirect(url_for('register'))
 
-    # Create a new user instance
     new_user = User(first_name=first_name, last_name=last_name, email=email)
-    new_user.set_password(password) # Hash and store the password
+    new_user.set_password(password)
 
     try:
-        db.session.add(new_user) # Add the new user to the session
-        db.session.commit() # Commit changes to the database
-        flash('Account created successfully! You can now log in.')
-        return redirect(url_for('index'))
+        db.session.add(new_user)
+        db.session.commit()
+
+        # KALDIRILDI: E-posta gönderme kodu bloğu
+        # import threading
+        # threading.Thread(target=mail.send, args=[msg]).start()
+
+        # Kayıt başarılı olduğunda kullanıcıyı başarı sayfasına yönlendir.
+        return redirect(url_for('registration_success'))
+
     except Exception as e:
-        db.session.rollback() # Rollback on error
-        print(f"Error during registration: {e}") # Log error for debugging
+        db.session.rollback()
+        print(f"Error during registration: {e}")
         flash('An error occurred during registration. Please try again.')
         return redirect(url_for('register'))
+
+# --- Yeni Rota: Başarılı Kayıt Sayfası ---
+@app.route('/registration_success')
+def registration_success():
+    """Displays a success page after user registration."""
+    return render_template('registration_success.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
