@@ -217,6 +217,27 @@ def registration_success():
     """Display a success page after user registration."""
     return render_template("registration_success.html")
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """Render the login form page and handle login form submission."""
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
+
+        user = User.query.filter_by(email=email).first()
+
+        if user and user.check_password(password):
+            flash("Logged in successfully!")
+            return redirect(url_for("index"))
+        else:
+            flash("Invalid email or password. Please try again.")
+            return redirect(url_for("login"))
+    
+    # GET isteği geldiğinde, login formunu göster
+    return render_template("login.html")
+
+# Eski login_post rotasını silebilirsiniz, artık ihtiyacınız yok.
+
 
 if __name__ == "__main__":
     app.run(debug=True)
