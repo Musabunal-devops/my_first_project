@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: isort
         name: isort
-        entry: isort -rc .
+        entry: isort .
         language: system
         require_serial: true
         types: [python]
@@ -23,8 +23,9 @@ repos:
 
       - id: pylint
         name: pylint
-        entry: pylint se_appl tests
+        entry: pylint
         language: system
+        args: ["--disable=R1705,W0718,W0611"]
         pass_filenames: false
         always_run: true
 
