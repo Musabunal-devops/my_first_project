@@ -2,17 +2,20 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
+
+from dotenv import load_dotenv
 # from flask_mail import Mail, Message # KALDIRILDI: Flask-Mail artık kullanılmıyor
+load_dotenv()
 
 app = Flask(__name__)
 # --- Configuration ---
 app.config['UPLOAD_FOLDER'] = 'uploads/'  # Folder where uploaded files will be saved
 app.config['ALLOWED_EXTENSIONS'] = {'pdf', 'doc', 'docx'}  # Allowed file extensions
 # PostgreSQL Database URI - Replace 'cv_app_user' and 'Musab1zehra.' with your actual credentials
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://cv_app_user:Musab1zehra.@localhost:5432/cv_app_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URI')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # To suppress a warning
 # SECRET_KEY is essential for security. CHANGE THIS TO A LONG, RANDOM STRING!
-app.config['SECRET_KEY'] = 'your_secret_key_here_change_this_to_a_long_random_string'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 
 # KALDIRILDI: Flask-Mail Configuration bloğu
 # app.config['MAIL_SERVER'] = 'smtp.gmail.com'
