@@ -75,7 +75,7 @@
         <p>Here you can upload and edit your CV, and receive valuable feedback from other users. We are here to help you on your career journey.</p>
         <p>To log in or create a new account, please choose one of the options below:</p>
         <div class="button-group">
-            <a href="#" class="button primary">Log In</a> {# Leaving this empty for now, will add login page later #}
+            <a href="{{ url_for('login') }}" class="button primary">Log In</a> {# Leaving this empty for now, will add login page later #}
             <a href="{{ url_for('register') }}" class="button success">Create Account</a> {# Updated this! #}
         </div>
     </div>
