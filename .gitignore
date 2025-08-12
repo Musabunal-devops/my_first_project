@@ -39,3 +39,5 @@ config.ini
 .idea/         # IntelliJ / PyCharm project files
 .vscode/       # VS Code workspace files
 *.iml          # IntelliJ / PyCharm module files
+
+uploads/*
