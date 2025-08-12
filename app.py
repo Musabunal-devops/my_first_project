@@ -3,7 +3,7 @@
 import os
 
 from dotenv import load_dotenv
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, redirect, render_template, request, url_for, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -121,7 +121,7 @@ def index():
 @app.route("/upload_cv_page")
 def upload_cv_page():
     """Render the page for uploading a CV."""
-    return render_template("upload_cv.html")
+    return render_template("upload_cv_page.html")
 
 
 @app.route("/upload", methods=["POST"])
@@ -153,7 +153,7 @@ def upload_file():
         filename = file.filename
         file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
         flash("Your CV has been successfully uploaded! More features are coming soon.")
-        return redirect(url_for("index"))
+        return redirect(url_for("view_uploaded_cv", filename=filename))
     else:
         flash("Invalid file format. Please upload a file in PDF, DOC, or DOCX format.")
         return redirect(request.url)
@@ -220,24 +220,56 @@ def registration_success():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     """Render the login form page and handle login form submission."""
+    
     if request.method == "POST":
         email = request.form["email"]
         password = request.form["password"]
 
+        # Look for the user in the database by their email address
         user = User.query.filter_by(email=email).first()
 
+        # If a user is found and the password is correct
         if user and user.check_password(password):
             flash("Logged in successfully!")
-            return redirect(url_for("index"))
+            return redirect(url_for("upload_cv_page"))
         else:
             flash("Invalid email or password. Please try again.")
             return redirect(url_for("login"))
     
-    # GET isteği geldiğinde, login formunu göster
+    # When a GET request is received, show the login form
     return render_template("login.html")
 
-# Eski login_post rotasını silebilirsiniz, artık ihtiyacınız yok.
 
+# Yüklenen CV dosyasını tarayıcıya göndermek için yeni bir rota
+@app.route("/uploads/<filename>")
+def uploaded_file_display(filename):
+    """
+    Serve the uploaded file from the UPLOAD_FOLDER.
+    """
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
+
+# Yükleme sonrası CV'yi ve profil oluşturma butonunu gösterecek yeni sayfa
+@app.route("/view_cv/<filename>")
+def view_uploaded_cv(filename):
+    """
+    Render the page that displays the uploaded CV and a button to create a profile.
+    """
+    return render_template("view_cv.html", filename=filename)
+
+
+# Profil oluşturma sayfasına yönlendirme için placeholder (boş) bir rota
+# Gerçek profil oluşturma mantığını daha sonra bu fonksiyona ekleyebilirsiniz
+@app.route("/create_profile")
+def create_profile_page():
+    """
+    Render the page for creating a user profile.
+    """
+    return "Profil Oluşturma Sayfası Gelecek..."
+
+
+
+
+# You can now remove the old login_post route, as it's no longer needed
 
 if __name__ == "__main__":
     app.run(debug=True)
