@@ -17,6 +17,13 @@
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
+        .cv-viewer-container {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #fafafa;
+        }
     </style>
 </head>
 <body>
@@ -27,15 +34,33 @@
         <p class="text-center">Your CV is now saved. You can view it and proceed to create your profile.</p>
 
         <div class="d-grid gap-2">
-            <a href="{{ url_for('uploaded_file_display', filename=filename) }}" class="btn btn-secondary btn-lg" target="_blank">View Your CV</a>
-
-            <a href="{{ url_for('create_profile_page') }}" class="btn btn-primary btn-lg mt-3">Create Your Profile</a>
+            <button id="view-cv-btn" class="btn btn-secondary btn-lg">View Your CV</button>
         </div>
 
+        <div id="cv-viewer" class="cv-viewer-container" style="display:none;">
+            </div>
+
         <hr class="my-4">
-        <p class="text-center"><a href="{{ url_for('index') }}">Return to Homepage</a></p>
+        <div class="d-grid gap-2">
+            <a href="{{ url_for('create_profile_page') }}" class="btn btn-primary btn-lg">Create Your Profile</a>
+        </div>
+        <p class="text-center mt-3"><a href="{{ url_for('index') }}">Return to Homepage</a></p>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('view-cv-btn').addEventListener('click', function() {
+            const cvViewer = document.getElementById('cv-viewer');
+            const cvUrl = "{{ url_for('uploaded_file_display', filename=filename) }}";
+            
+            // Eğer PDF dosyası ise
+            // cvViewer.innerHTML = `<embed src="${cvUrl}" type="application/pdf" width="100%" height="600px" />`;
+
+            // Eğer HTML olarak görüntülemek isterseniz (iFrame kullanarak)
+            cvViewer.innerHTML = `<iframe src="${cvUrl}" width="100%" height="600px" frameborder="0"></iframe>`;
+
+            cvViewer.style.display = 'block';
+        });
+    </script>
 </body>
 </html>
