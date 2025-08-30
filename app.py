@@ -1,6 +1,12 @@
 """This is the main application file for the CV-app."""
 
 import os
+import re
+import pdfplumber
+import docx
+import fitz #PyMuPDF
+from PIL import Image
+import io
 
 from dotenv import load_dotenv
 from flask import Flask, flash, redirect, render_template, request, url_for, send_from_directory
@@ -112,6 +118,109 @@ def allowed_file(filename):
 # --- Routes ---
 
 
+def extract_text_from_cv(filepath):
+    """
+    Extracts text from the specified file path.
+    """
+    try:
+        file_ext = os.path.splitext(filepath)[1].lower()
+        text = ""
+        if file_ext == ".pdf":
+            with pdfplumber.open(filepath) as pdf:
+                for page in pdf.pages:
+                    text += page.extract_text() or ""
+        elif file_ext in [".doc", ".docx"]:
+            doc = docx.Document(filepath)
+            for para in doc.paragraphs:
+                text += para.text + "\n"
+        return text
+    except Exception as e:
+        print(f"Text extraction error: {e}")
+        return None
+
+def extract_and_save_images_from_pdf(filepath, output_folder):
+    """
+    Extracts and saves images from the specified PDF file.
+    """
+    found_images = []
+    try:
+        doc = fitz.open(filepath)
+        for i in range(len(doc)):
+            images = doc.get_page_images(i)
+            if not images:
+                continue
+
+            for img_index, img in enumerate(images):
+                xref = img[0]
+                base_image = doc.extract_image(xref)
+                image_data = base_image["image"]
+                
+                # Skip if image data is missing or too small
+                if not image_data or len(image_data) < 100:
+                    continue
+
+                # Create a unique filename
+                filename = os.path.basename(filepath)
+                # We can set a threshold to prevent confusion with small images.
+                # Typically, profile photos are larger than a certain pixel size.
+                try:
+                    img_stream = io.BytesIO(image_data)
+                    pil_img = Image.open(img_stream)
+                    # We can check the image size, for example, if it's larger than 100x100.
+                    if pil_img.width > 100 and pil_img.height > 100:
+                        image_filename = f"{os.path.splitext(filename)[0]}_profile_photo.png"
+                        image_path = os.path.join(output_folder, image_filename)
+                        
+                        with open(image_path, "wb") as f:
+                            f.write(image_data)
+                        
+                        found_images.append(image_filename)
+                        # We try to find the most relevant one by returning only the first suitable photo.
+                        return [image_filename] # Return only one image
+
+                except Exception as e:
+                    print(f"Image size check error: {e}")
+                    continue
+
+    except Exception as e:
+        print(f"Error extracting image from PDF: {e}")
+    
+    # If this point is reached, no image was found.
+    print("A profile photo could not be extracted from the CV.")
+    return found_images
+
+def parse_cv_content(text):
+    """
+    Parses CV text by dynamically identifying potential section headings.
+    Headings are assumed to be a line consisting of all uppercase letters.
+    """
+    sections = {}
+    lines = text.split('\n')
+    current_section = "Other"
+    
+    # Initialize a key for the "Other" section
+    sections[current_section] = ""
+
+    for line in lines:
+        stripped_line = line.strip()
+        # Check if the line is a potential heading: all uppercase, not too short, and not empty.
+        if stripped_line and stripped_line.isupper() and len(stripped_line.split()) <= 4 and len(stripped_line) > 2:
+            current_section = stripped_line
+            sections[current_section] = ""
+        elif stripped_line:
+            sections[current_section] += stripped_line + '\n'
+
+    # Clean up empty sections and organize the "Other" section if it exists.
+    cleaned_sections = {k: v.strip() for k, v in sections.items() if v.strip()}
+    
+    # If no headings are found, assign all text to the "Other" section
+    if not cleaned_sections and text.strip():
+        return {"Other": text.strip()}
+    
+    return cleaned_sections
+
+
+
 @app.route("/")
 def index():
     """Render the main homepage."""
@@ -126,39 +235,46 @@ def upload_cv_page():
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
-    """
-    Handle the file upload logic for CVs.
-
-    Parameters
-    ----------
-    None
-        This function receives file data from a POST request.
-
-    Returns
-    -------
-    Response
-        Redirects to the index page on success, or to the upload page on failure.
-    """
+    # Check if a file named 'file' exists in the request
     if "file" not in request.files:
-        flash("No file part")
+        flash("File not found.")
         return redirect(request.url)
 
     file = request.files["file"]
 
+    # If the filename is empty (no file was selected)
     if file.filename == "":
-        flash("No selected file")
+        flash("No file selected.")
         return redirect(request.url)
 
-    if file and allowed_file(file.filename):
-        filename = file.filename
-        file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
-        flash("Your CV has been successfully uploaded! More features are coming soon.")
-        return redirect(url_for("view_uploaded_cv", filename=filename))
-    else:
-        flash("Invalid file format. Please upload a file in PDF, DOC, or DOCX format.")
+    # Check if the file's extension is allowed
+    if not allowed_file(file.filename):
+        flash("Invalid file format.")
         return redirect(request.url)
 
+    # Proceed if the file is safe and valid
+    filename = file.filename
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    file.save(filepath)
+    
+    extracted_images = []
+    photo_filename = None
+    
+    # Perform image extraction only for PDFs
+    if os.path.splitext(filename)[1].lower() == ".pdf":
+        extracted_images = extract_and_save_images_from_pdf(filepath, app.config["UPLOAD_FOLDER"])
+        
+        # If an image was found, use the first one
+        if extracted_images:
+            photo_filename = os.path.basename(extracted_images[0])
+        else:
+            flash("Could not extract a profile photo from the CV.")
 
+    flash("Your CV has been successfully uploaded!")
+    
+    return redirect(url_for("create_profile_page", 
+                            filename=filename, 
+                            photo_filename=photo_filename))
 @app.route("/register")
 def register():
     """Render the user registration form page."""
@@ -240,7 +356,7 @@ def login():
     return render_template("login.html")
 
 
-# Yüklenen CV dosyasını tarayıcıya göndermek için yeni bir rota
+# A new route to serve the uploaded CV file to the browser
 @app.route("/uploads/<filename>")
 def uploaded_file_display(filename):
     """
@@ -248,7 +364,7 @@ def uploaded_file_display(filename):
     """
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
 
-# Yükleme sonrası CV'yi ve profil oluşturma butonunu gösterecek yeni sayfa
+# A new page to show the uploaded CV and a button to create a profile
 @app.route("/view_cv/<filename>")
 def view_uploaded_cv(filename):
     """
@@ -257,19 +373,21 @@ def view_uploaded_cv(filename):
     return render_template("view_cv.html", filename=filename)
 
 
-# Profil oluşturma sayfasına yönlendirme için placeholder (boş) bir rota
-# Gerçek profil oluşturma mantığını daha sonra bu fonksiyona ekleyebilirsiniz
-@app.route("/create_profile")
-def create_profile_page():
-    """
-    Render the page for creating a user profile.
-    """
-    return "Profil Oluşturma Sayfası Gelecek..."
-
-
-
-
-# You can now remove the old login_post route, as it's no longer needed
-
+# Placeholder route for redirecting to the profile creation page
+# The create_profile_page route in app.py (unchanged but as a reminder)
+@app.route("/create_profile/<filename>")
+def create_profile_page(filename):
+    photo_filename = request.args.get('photo_filename') # photo_filename is retrieved from here
+    
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    cv_text = extract_text_from_cv(filepath)
+    parsed_sections = {}
+    if cv_text:
+        parsed_sections = parse_cv_content(cv_text)
+    
+    return render_template("create_profile.html", 
+                           sections=parsed_sections, 
+                           filename=filename,
+                           photo_filename=photo_filename) # It's sent to the template from here
 if __name__ == "__main__":
     app.run(debug=True)

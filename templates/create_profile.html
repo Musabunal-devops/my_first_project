@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Your Profile</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: #e8e8e8; /* Light gray outer background */
+            color: #fff; /* Default text color is white */
+        }
+
+        .container {
+            display: flex; /* Align contents side-by-side */
+            height: 100vh;
+            max-width: 1200px;
+            margin: auto;
+            background: #1a1a1a; /* Dark gray/black background */
+            padding: 20px;
+            box-sizing: border-box;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Left sidebar (profile and buttons) */
+        .left-sidebar {
+            width: 250px;
+            flex-shrink: 0; /* Prevent it from shrinking */
+            padding-right: 20px;
+            display: flex;
+            flex-direction: column; /* Stack contents vertically */
+            align-items: center; /* Center align */
+        }
+
+        .profile-photo {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 20px;
+            border: 4px solid #fff;
+        }
+
+        .section-buttons {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px; /* Space between buttons */
+        }
+
+        .section-buttons button {
+            background-color: transparent;
+            color: white;
+            border: 2px solid #fff;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 16px;
+            text-align: left;
+            position: relative;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        /* The "dot" icon to the left of the button */
+        .section-buttons button::before {
+            content: "•"; /* Or any icon character */
+            color: #fff;
+            font-size: 24px;
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        .section-buttons button:hover,
+        .section-buttons button.active {
+            background-color: #fff;
+            color: #1a1a1a;
+        }
+        
+        /* The content area on the right */
+        .content-area {
+            flex-grow: 1; /* Occupy the remaining space */
+            background-color: #fff;
+            color: #1a1a1a;
+            border-radius: 15px;
+            padding: 30px;
+            overflow-y: auto; /* Scrollbar if content overflows */
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        
+        .cv-content-section {
+            display: none;
+        }
+
+        .cv-content-section.active {
+            display: block;
+        }
+
+        /* "My Status" and "Give Feedback" sections */
+        .status-box {
+            background-color: #fff;
+            border: 2px solid #1a1a1a;
+            border-radius: 25px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #1a1a1a;
+        }
+
+        .feedback-text {
+            position: absolute;
+            bottom: 20px;
+            right: 30px;
+            font-size: 14px;
+            color: #1a1a1a;
+            font-weight: bold;
+        }
+
+        /* Content headings */
+        .content-area h2 {
+            margin-top: 0;
+            color: #0056b3;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="left-sidebar">
+            <img src="{{ url_for('uploaded_file_display', filename=photo_filename) if photo_filename else 'https://via.placeholder.com/150/000000/FFFFFF?text=FOTO' }}" class="profile-photo" alt="Profile Photo">
+            
+            <div class="section-buttons">
+            </div>
+        </div>
+
+        <div class="content-area">
+            <div class="status-box active" id="my-status-content">
+                <h2>MY STATUS</h2>
+                <p>I'M A JUNIOR DEVOPS ENGINEER. I'VE BEEN LOOKING FOR A JOB SINCE MARCH. THIS IS MY CURRENT CV. IF THERE'S ANYTHING THAT NEEDS TO BE CHANGED, PLEASE LET ME KNOW.</p>
+            </div>
+            
+            {% for key, value in sections.items() %}
+                {% if value.strip() %}
+                    <div class="cv-content-section" id="{{ key.lower() }}-content">
+                        <h2>{{ key }}</h2>
+                        <pre>{{ value }}</pre>
+                    </div>
+                {% endif %}
+            {% endfor %}
+
+            <div class="feedback-text">GIVE FEEDBACK</div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const buttonsContainer = document.querySelector('.section-buttons');
+            const sections = document.querySelectorAll('.cv-content-section');
+            const statusBox = document.getElementById('my-status-content');
+
+            // Pass the data from Python to JavaScript
+            const parsedSections = {{ sections | tojson }};
+
+            // Dynamically create buttons
+            for (const key in parsedSections) {
+                if (parsedSections[key].trim()) {
+                    const button = document.createElement('button');
+                    button.classList.add('section-button');
+                    button.setAttribute('data-section', key.toLowerCase());
+                    button.textContent = key;
+                    buttonsContainer.appendChild(button);
+                }
+            }
+
+            const buttons = document.querySelectorAll('.section-button');
+            if (buttons.length > 0) {
+                // Make the first button active by default (after My Status)
+                // You can change this part based on your user experience
+            }
+
+            buttons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove the 'active' class from all buttons
+                    buttons.forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+
+                    // Hide all content sections
+                    sections.forEach(section => {
+                        section.classList.remove('active');
+                    });
+                    statusBox.classList.remove('active');
+
+                    // Show the target section
+                    const targetSectionId = this.getAttribute('data-section') + '-content';
+                    const targetSection = document.getElementById(targetSectionId);
+                    if (targetSection) {
+                        targetSection.classList.add('active');
+                    }
+                });
+            });
+
+            // Show the My Status box on initial load
+            statusBox.classList.add('active');
+        });
+    </script>
+</body>
+</html>
