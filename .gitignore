@@ -24,6 +24,8 @@ env/           # Alternative virtual environment directory name
 db.sqlite3
 *.log
 logs/
+instance/
+*.db
 
 # Environment Variables and Sensitive Information (ABSOLUTELY MUST NOT BE COMMITTED TO GIT!)
 .env           # Environment variable files (e.g., for Django SECRET_KEY)

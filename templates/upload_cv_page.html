@@ -65,6 +65,11 @@
             const fileInput = document.getElementById('file-upload');
             const fileNameDisplay = document.getElementById('file-name-display');
  
+            // Allow selecting the same file again (resets value on click)
+            fileInput.addEventListener('click', function() {
+                this.value = null;
+            });
+
             fileInput.addEventListener('change', function(event) {
                 if (event.target.files.length > 0) {
                     fileNameDisplay.textContent = event.target.files[0].name;
@@ -72,6 +77,15 @@
                     fileNameDisplay.textContent = 'No file selected';
                }
             });
+        });
+
+        // Ensure form is clean when navigating back
+        window.addEventListener('pageshow', function(event) {
+            const form = document.querySelector('form');
+            if (form) {
+                form.reset();
+                document.getElementById('file-name-display').textContent = 'No file selected';
+            }
         });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

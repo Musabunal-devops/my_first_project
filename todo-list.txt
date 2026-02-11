@@ -1,0 +1,13 @@
+- [ ] Add language options for the page - ENG - DE - TÜR
+- [ ] Text formatting adjustments
+  - [x] Some formatting done, at least text styles under buttons are improved
+  - [ ] Better detection of headings and spacing
+  - [ ] Research availability of a better helper library for this
+  - [ ] Can I use AI?
+- [ ] Scanning the CV and placing proper headings for each section. For example, in one CV the healing is "berufserfahrung", in another "erfahrung", in another "experience"; need to evaluate all these in a unified way.
+- [ ] Further DevOps configurations
+  - [ ] Run with Docker Compose first
+  - [ ] Then run in a Kubernetes cluster with k3s
+  - [ ] Use with Rancher
+  - [ ] Then use with AWS
+- [ ] Uploaded CVs and their images are stored locally in the `uploads` folder within the repo. I want to store this in the database. How can I do this?

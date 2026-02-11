@@ -1,92 +1,163 @@
-"""This is the main application file for the CV-app."""
-
+"""CV Profile Builder - Flask web application for uploading and parsing CVs."""
+# --- IMPORTS ---
 import os
-import re
-import pdfplumber
-import docx
-import fitz #PyMuPDF
-from PIL import Image
-import io
-
+import warnings
+from datetime import datetime
 from dotenv import load_dotenv
-from flask import Flask, flash, redirect, render_template, request, url_for, send_from_directory
+from flask import (
+    Flask,
+    flash,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    url_for,
+)
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
+from cv_parser import (
+    parse_section_blocks,
+    parse_cv_content,
+    extract_text_from_cv,
+    extract_and_save_images_from_pdf,
+    extract_contact_info,
+    looks_like_name,
+    clean_applicant_label,
+    filter_name_blocks,
+    EXPECTED_HEADINGS,
+)
 
+warnings.filterwarnings("ignore")
+
+# --- ENVIRONMENT SETUP ---
 load_dotenv()
 
+# --- FLASK APP CONFIGURATION ---
 app = Flask(__name__)
-# --- Configuration ---
 app.config["UPLOAD_FOLDER"] = "uploads/"
 app.config["ALLOWED_EXTENSIONS"] = {"pdf", "doc", "docx"}
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URI")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 
-# --- Initialize Database ---
+# --- INITIALIZE DATABASE ---
 db = SQLAlchemy(app)
 
-# --- Create 'uploads' folder if it doesn't exist ---
+# --- CREATE FOLDERS IF THEY DON'T EXIST ---
+# Ensure the instance folder exists for the SQLite database
+instance_path = os.path.join(app.root_path, "instance")
+try:
+    if not os.path.exists(instance_path):
+        os.makedirs(instance_path)
+except OSError:
+    pass
+
 if not os.path.exists(app.config["UPLOAD_FOLDER"]):
     os.makedirs(app.config["UPLOAD_FOLDER"])
 
 
-# --- Database Model Definition ---
-class User(db.Model):
-    """
-    User model for the database, representing registered users.
 
-    Attributes
-    ----------
-    id : int
-        The primary key for the user.
-    first_name : str
-        The user's first name.
-    last_name : str
-        The user's last name.
-    email : str
-        The user's unique email address.
-    password_hash : str
-        The hashed password for the user.
-    """
+class User(db.Model):
+    """Database model representing application users."""
 
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(512), nullable=False)
     last_name = db.Column(db.String(512), nullable=False)
     email = db.Column(db.String(512), unique=True, nullable=False)
     password_hash = db.Column(db.String(512), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
 
     def set_password(self, password):
-        """
-        Hashe the provided password and sets it to the password_hash attribute.
-
-        Parameters
-        ----------
-        password : str
-            The plaintext password to be hashed.
-        """
+        """Hash and store the provided password."""
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
-        """
-        Check if the provided password matches the stored hashed password.
-
-        Parameters
-        ----------
-        password : str
-            The plaintext password to be checked.
-
-        Returns
-        -------
-        bool
-            Returns True if the passwords match, False otherwise.
-        """
+        """Verify a plaintext password against the stored hash."""
         return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
-        """Return a string representation of the user."""
         return f"<User {self.email}>"
+
+    cvs = db.relationship("CV", backref="user", lazy=True)
+
+
+# --- CV Model Definition ---
+class CV(db.Model):
+    """
+    CV model for storing uploaded CV file paths and related info.
+
+    Attributes
+    ----------
+    id : int
+        The primary key for the CV.
+    user_id : int
+        Foreign key to the User who uploaded the CV (optional).
+    filename : str
+        The name of the uploaded file.
+    filepath : str
+        The path to the uploaded file on the server.
+    upload_time : datetime
+        The time the CV was uploaded.
+    """
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    filename = db.Column(db.String(512), nullable=False)
+    filepath = db.Column(db.String(1024), nullable=False)
+    upload_time = db.Column(db.DateTime, default=datetime.now)
+
+    def __repr__(self):
+        return f"<CV {self.filename} by user {self.user_id}>"
+
+    feedbacks = db.relationship(
+        "Feedback", backref="cv", lazy=True, cascade="all, delete-orphan"
+    )
+
+
+class Feedback(db.Model):
+    """
+    Feedback model for storing user feedback on CVs.
+
+    Attributes
+    ----------
+    id : int
+        The primary key for the feedback.
+    cv_id : int
+        Foreign key to the CV this feedback is for.
+    user_id : int
+        Foreign key to the User who gave the feedback (optional for anonymous).
+    author_name : str
+        Name of the person giving feedback (for display).
+    content : str
+        The actual feedback text.
+    rating : int
+        Optional rating from 1-5 stars.
+    feedback_type : str
+        Type of feedback (general, design, content, etc.).
+    is_anonymous : bool
+        Whether the feedback should be displayed anonymously.
+    created_at : datetime
+        When the feedback was created.
+    is_approved : bool
+        Whether the feedback has been approved by moderators.
+    """
+
+    id = db.Column(db.Integer, primary_key=True)
+    cv_id = db.Column(db.Integer, db.ForeignKey("cv.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    author_name = db.Column(db.String(255), nullable=False, default="Anonymous User")
+    content = db.Column(db.Text, nullable=False)
+    rating = db.Column(db.Integer, nullable=True)  # 1-5 stars
+    feedback_type = db.Column(
+        db.String(50), default="general"
+    )  # general, design, content, skills, etc.
+    is_anonymous = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    is_approved = db.Column(db.Boolean, default=True)  # Auto-approve for now
+
+    def __repr__(self):
+        return f"<Feedback for CV {self.cv_id} by {self.author_name}>"
 
 
 # --- Create Database Tables (Run only once or when models change) ---
@@ -118,109 +189,6 @@ def allowed_file(filename):
 # --- Routes ---
 
 
-def extract_text_from_cv(filepath):
-    """
-    Extracts text from the specified file path.
-    """
-    try:
-        file_ext = os.path.splitext(filepath)[1].lower()
-        text = ""
-        if file_ext == ".pdf":
-            with pdfplumber.open(filepath) as pdf:
-                for page in pdf.pages:
-                    text += page.extract_text() or ""
-        elif file_ext in [".doc", ".docx"]:
-            doc = docx.Document(filepath)
-            for para in doc.paragraphs:
-                text += para.text + "\n"
-        return text
-    except Exception as e:
-        print(f"Text extraction error: {e}")
-        return None
-
-def extract_and_save_images_from_pdf(filepath, output_folder):
-    """
-    Extracts and saves images from the specified PDF file.
-    """
-    found_images = []
-    try:
-        doc = fitz.open(filepath)
-        for i in range(len(doc)):
-            images = doc.get_page_images(i)
-            if not images:
-                continue
-
-            for img_index, img in enumerate(images):
-                xref = img[0]
-                base_image = doc.extract_image(xref)
-                image_data = base_image["image"]
-                
-                # Skip if image data is missing or too small
-                if not image_data or len(image_data) < 100:
-                    continue
-
-                # Create a unique filename
-                filename = os.path.basename(filepath)
-                # We can set a threshold to prevent confusion with small images.
-                # Typically, profile photos are larger than a certain pixel size.
-                try:
-                    img_stream = io.BytesIO(image_data)
-                    pil_img = Image.open(img_stream)
-                    # We can check the image size, for example, if it's larger than 100x100.
-                    if pil_img.width > 100 and pil_img.height > 100:
-                        image_filename = f"{os.path.splitext(filename)[0]}_profile_photo.png"
-                        image_path = os.path.join(output_folder, image_filename)
-                        
-                        with open(image_path, "wb") as f:
-                            f.write(image_data)
-                        
-                        found_images.append(image_filename)
-                        # We try to find the most relevant one by returning only the first suitable photo.
-                        return [image_filename] # Return only one image
-
-                except Exception as e:
-                    print(f"Image size check error: {e}")
-                    continue
-
-    except Exception as e:
-        print(f"Error extracting image from PDF: {e}")
-    
-    # If this point is reached, no image was found.
-    print("A profile photo could not be extracted from the CV.")
-    return found_images
-
-def parse_cv_content(text):
-    """
-    Parses CV text by dynamically identifying potential section headings.
-    Headings are assumed to be a line consisting of all uppercase letters.
-    """
-    sections = {}
-    lines = text.split('\n')
-    current_section = "Other"
-    
-    # Initialize a key for the "Other" section
-    sections[current_section] = ""
-
-    for line in lines:
-        stripped_line = line.strip()
-        # Check if the line is a potential heading: all uppercase, not too short, and not empty.
-        if stripped_line and stripped_line.isupper() and len(stripped_line.split()) <= 4 and len(stripped_line) > 2:
-            current_section = stripped_line
-            sections[current_section] = ""
-        elif stripped_line:
-            sections[current_section] += stripped_line + '\n'
-
-    # Clean up empty sections and organize the "Other" section if it exists.
-    cleaned_sections = {k: v.strip() for k, v in sections.items() if v.strip()}
-    
-    # If no headings are found, assign all text to the "Other" section
-    if not cleaned_sections and text.strip():
-        return {"Other": text.strip()}
-    
-    return cleaned_sections
-
-
-
 @app.route("/")
 def index():
     """Render the main homepage."""
@@ -235,7 +203,7 @@ def upload_cv_page():
 
 @app.route("/upload", methods=["POST"])
 def upload_file():
-    # Check if a file named 'file' exists in the request
+    """Handle CV file upload."""
     if "file" not in request.files:
         flash("File not found.")
         return redirect(request.url)
@@ -256,14 +224,24 @@ def upload_file():
     filename = file.filename
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
-    
+
+    # --- Save CV info to database ---
+    try:
+        new_cv = CV(filename=filename, filepath=filepath)
+        db.session.add(new_cv)
+        db.session.commit()
+    except (IntegrityError, OSError) as e:
+        db.session.rollback()
+        flash(f"Could not save CV to database: {e}")
+
     extracted_images = []
     photo_filename = None
-    
+
     # Perform image extraction only for PDFs
     if os.path.splitext(filename)[1].lower() == ".pdf":
-        extracted_images = extract_and_save_images_from_pdf(filepath, app.config["UPLOAD_FOLDER"])
-        
+        extracted_images = extract_and_save_images_from_pdf(
+            filepath, app.config["UPLOAD_FOLDER"]
+        )
         # If an image was found, use the first one
         if extracted_images:
             photo_filename = os.path.basename(extracted_images[0])
@@ -271,10 +249,12 @@ def upload_file():
             flash("Could not extract a profile photo from the CV.")
 
     flash("Your CV has been successfully uploaded!")
-    
-    return redirect(url_for("create_profile_page", 
-                            filename=filename, 
-                            photo_filename=photo_filename))
+
+    return redirect(
+        url_for("create_profile_page", filename=filename, photo_filename=photo_filename)
+    )
+
+
 @app.route("/register")
 def register():
     """Render the user registration form page."""
@@ -306,37 +286,39 @@ def register_post():
         flash("Passwords do not match! Please try again.")
         return redirect(url_for("register"))
 
+    # Check if email already exists
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
+        flash("This email is already registered. Please use a different email address.")
+        return redirect(url_for("register"))
+
     new_user = User(first_name=first_name, last_name=last_name, email=email)
     new_user.set_password(password)
 
     try:
         db.session.add(new_user)
         db.session.commit()
-        return redirect(url_for("registration_success"))
+
+        flash("Registration successful! You can now log in.")
+        return redirect(url_for("login"))
 
     except IntegrityError:
         # Caught when a user tries to register with a pre-existing email.
         db.session.rollback()
-        flash("This email address is already registered. Please use a different one.")
+        flash("This email is already registered. Please use a different email address.")
         return redirect(url_for("register"))
 
-    except Exception as e:
-        # This is a general fallback for any other unexpected errors.
+    except (OSError, RuntimeError) as e:
         db.session.rollback()
         print(f"Error during registration: {e}")
         flash("An unexpected error occurred. Please try again.")
         return redirect(url_for("register"))
 
 
-@app.route("/registration_success")
-def registration_success():
-    """Display a success page after user registration."""
-    return render_template("registration_success.html")
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
     """Render the login form page and handle login form submission."""
-    
+
     if request.method == "POST":
         email = request.form["email"]
         password = request.form["password"]
@@ -346,12 +328,12 @@ def login():
 
         # If a user is found and the password is correct
         if user and user.check_password(password):
-            flash("Logged in successfully!")
+            flash("Successfully logged in!")
             return redirect(url_for("upload_cv_page"))
         else:
-            flash("Invalid email or password. Please try again.")
+            flash("Email or password is incorrect. Please try again.")
             return redirect(url_for("login"))
-    
+
     # When a GET request is received, show the login form
     return render_template("login.html")
 
@@ -364,6 +346,7 @@ def uploaded_file_display(filename):
     """
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
 
+
 # A new page to show the uploaded CV and a button to create a profile
 @app.route("/view_cv/<filename>")
 def view_uploaded_cv(filename):
@@ -373,21 +356,168 @@ def view_uploaded_cv(filename):
     return render_template("view_cv.html", filename=filename)
 
 
-# Placeholder route for redirecting to the profile creation page
-# The create_profile_page route in app.py (unchanged but as a reminder)
 @app.route("/create_profile/<filename>")
 def create_profile_page(filename):
-    photo_filename = request.args.get('photo_filename') # photo_filename is retrieved from here
-    
+    """Parse and render the profile creation page."""
+    photo_filename = request.args.get("photo_filename")
     filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     cv_text = extract_text_from_cv(filepath)
+    print("DEBUG cv_text:", cv_text)
     parsed_sections = {}
+    section_blocks = {}
+    contact_info = {}
+    display_labels = {}
     if cv_text:
+        contact_info = extract_contact_info(cv_text)
+        print("DEBUG contact_info:", contact_info)
         parsed_sections = parse_cv_content(cv_text)
-    
-    return render_template("create_profile.html", 
-                           sections=parsed_sections, 
-                           filename=filename,
-                           photo_filename=photo_filename) # It's sent to the template from here
+        print("DEBUG parsed_sections:", parsed_sections)
+        for section, text in parsed_sections.items():
+            section_blocks[section] = parse_section_blocks(text, section)
+
+        display_labels = {}
+        applicant_name = None
+        name_blocks = None
+
+        for section in list(section_blocks.keys()):
+            if section not in EXPECTED_HEADINGS.values() and looks_like_name(section):
+                if applicant_name is None:
+                    applicant_name = clean_applicant_label(section)
+                    raw_blocks = section_blocks.pop(section)
+                    name_blocks = filter_name_blocks(raw_blocks)
+                    break
+
+        if applicant_name:
+            if "PROFIL" in section_blocks:
+                if name_blocks:
+                    section_blocks["PROFIL"].extend(name_blocks)
+                display_labels["PROFIL"] = applicant_name
+            else:
+                section_blocks[applicant_name] = name_blocks if name_blocks else []
+                display_labels[applicant_name] = applicant_name
+
+        for section in section_blocks:
+            if section not in display_labels:
+                display_labels[section] = section
+
+        profile_section_key = None
+        if applicant_name:
+            if "PROFIL" in section_blocks:
+                profile_section_key = "PROFIL"
+            elif applicant_name in section_blocks:
+                profile_section_key = applicant_name
+        elif "PROFIL" in section_blocks:
+            # Even without applicant_name, put PROFIL first
+            profile_section_key = "PROFIL"
+
+        if profile_section_key:
+            ordered_keys = [profile_section_key]
+            ordered_keys.extend(
+                k for k in section_blocks if k != profile_section_key
+            )
+            original_blocks = section_blocks
+            section_blocks = {k: original_blocks[k] for k in ordered_keys}
+            display_labels = {k: display_labels.get(k, k) for k in ordered_keys}
+
+        print("DEBUG section_blocks:", section_blocks)
+    return render_template(
+        "create_profile.html",
+        sections=parsed_sections,
+        section_blocks=section_blocks,
+        display_labels=display_labels,
+        filename=filename,
+        photo_filename=photo_filename,
+        contact_info=contact_info,
+    )
+
+
+@app.route("/api/feedback", methods=["POST"])
+def submit_feedback():
+    """
+    API endpoint to submit feedback for a CV.
+
+    Expected JSON payload:
+    {
+        "cv_filename": "example.pdf",
+        "content": "This is great feedback!",
+        "author_name": "John Doe",
+        "rating": 5,
+        "feedback_type": "general",
+        "is_anonymous": true
+    }
+    """
+    data = request.get_json()
+
+    if not data or not data.get("content") or not data.get("cv_filename"):
+        return {"success": False, "message": "Missing required fields"}, 400
+
+    # Find the CV by filename
+    cv = CV.query.filter_by(filename=data["cv_filename"]).first()
+    if not cv:
+        return {"success": False, "message": "CV not found"}, 404
+
+    try:
+        # Create new feedback
+        feedback = Feedback(
+            cv_id=cv.id,
+            content=data["content"],
+            author_name=data.get("author_name", "Anonymous User"),
+            rating=data.get("rating"),
+            feedback_type=data.get("feedback_type", "general"),
+            is_anonymous=data.get("is_anonymous", True),
+        )
+
+        db.session.add(feedback)
+        db.session.commit()
+
+        return {
+            "success": True,
+            "message": "Feedback submitted successfully",
+            "feedback": {
+                "id": feedback.id,
+                "author_name": feedback.author_name,
+                "content": feedback.content,
+                "rating": feedback.rating,
+                "created_at": feedback.created_at.strftime("%d.%m.%Y %H:%M"),
+                "feedback_type": feedback.feedback_type,
+            },
+        }
+    except (IntegrityError, OSError) as e:
+        db.session.rollback()
+        return {"success": False, "message": f"Error saving feedback: {str(e)}"}, 500
+
+
+@app.route("/api/feedback/<filename>", methods=["GET"])
+def get_feedback(filename):
+    """
+    API endpoint to get all approved feedback for a CV.
+    """
+    cv = CV.query.filter_by(filename=filename).first()
+    if not cv:
+        return {"success": False, "message": "CV not found"}, 404
+
+    feedbacks = (
+        Feedback.query.filter_by(cv_id=cv.id, is_approved=True)
+        .order_by(Feedback.created_at.desc())
+        .all()
+    )
+
+    feedback_list = []
+    for feedback in feedbacks:
+        feedback_list.append(
+            {
+                "id": feedback.id,
+                "author_name": feedback.author_name,
+                "content": feedback.content,
+                "rating": feedback.rating,
+                "feedback_type": feedback.feedback_type,
+                "created_at": feedback.created_at.strftime("%d.%m.%Y %H:%M"),
+                "is_anonymous": feedback.is_anonymous,
+            }
+        )
+
+    return {"success": True, "feedbacks": feedback_list, "count": len(feedback_list)}
+
+
 if __name__ == "__main__":
     app.run(debug=True)

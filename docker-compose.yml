@@ -1,0 +1,11 @@
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URI=sqlite:////app/instance/project.db
+      - SECRET_KEY=dev-key-for-interview-showcase-123
+    volumes:
+      - ./uploads:/app/uploads
+      - ./instance:/app/instance
