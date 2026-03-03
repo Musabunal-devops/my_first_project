@@ -1,12 +1,5 @@
-"""CV parsing and extraction utilities for the CV Profile Builder."""
-import io
-import os
+"""CV section parsing and block structuring utilities."""
 import re
-
-import docx
-import fitz  # PyMuPDF
-import pdfplumber
-from PIL import Image
 
 
 def has_year(text):
@@ -17,6 +10,62 @@ def has_year(text):
             if 1900 <= year <= 2099:
                 return True
     return False
+
+
+EXPECTED_HEADINGS = {
+    "PROFIL": "PROFIL",
+    "KENNTNISSE": "KENNTNISSE",
+    "SPRACHKENNTNISSE": "SPRACHKENNTNISSE",
+    "SPRACHEN": "SPRACHKENNTNISSE",
+    "BERUFSERFAHRUNGEN": "BERUFSERFAHRUNGEN",
+    "BERUFSERFAHRUNG": "BERUFSERFAHRUNGEN",
+    "AUSBILDUNG": "AUSBILDUNG",
+    "PROJEKTE UND VERANSTALTUNGEN": "PROJEKTE UND VERANSTALTUNGEN",
+    "PROJEKTE & VERANSTALTUNGEN": "PROJEKTE UND VERANSTALTUNGEN",
+    "PROJEKTE LEITUNG": "PROJEKTE LEITUNG",
+    "PROJEKT LEITUNG": "PROJEKTE LEITUNG",
+    "PROJEKTLEITUNG": "PROJEKTE LEITUNG",
+    "PROJEKTELEITUNG": "PROJEKTE LEITUNG",
+    "PROJEKTLEITUNGEN": "PROJEKTE LEITUNG",
+    "ZUSÄTZLICHE QUALIFIKATIONEN": "ZUSÄTZLICHE QUALIFIKATIONEN",
+    "ZUSATZLICHE QUALIFIKATIONEN": "ZUSÄTZLICHE QUALIFIKATIONEN",
+    "ZUSATZLICHE QUALIFIKATION": "ZUSÄTZLICHE QUALIFIKATIONEN",
+    "ZUSÄTZLICHE QUALIFIKATION": "ZUSÄTZLICHE QUALIFIKATIONEN",
+}
+
+LANGUAGE_PATTERNS = [
+    "türkisch", "deutsch", "englisch", "französisch", "spanisch",
+    "italienisch", "russisch", "arabisch", "chinesisch", "japanisch",
+    "muttersprache", "niveau", "a1", "a2", "b1", "b2", "c1", "c2",
+]
+
+
+def normalize_heading(text):
+    """Normalize text to uppercase heading format."""
+    chars = []
+    for ch in text:
+        if ch.isalpha() or ch.isdigit() or ch.isspace() or ch in ["&", "-", "/"]:
+            chars.append(ch.upper())
+        else:
+            chars.append(" ")
+    joined = "".join(chars)
+    parts = [segment for segment in joined.split() if segment]
+    return " ".join(parts)
+
+
+def is_probable_heading(text):
+    """Heuristic to detect headings written in uppercase."""
+    if not text:
+        return False
+    stripped = text.strip()
+    if not stripped or stripped.startswith("\u2022") or stripped.startswith("- "):
+        return False
+    if not stripped[0].isalpha():
+        return False
+    if any(ch.islower() for ch in stripped):
+        return False
+    letters = sum(1 for ch in stripped if ch.isalpha())
+    return letters >= 3 and len(stripped) <= 60
 
 
 def parse_section_blocks(
@@ -277,63 +326,6 @@ def parse_section_blocks(
     return blocks
 
 
-EXPECTED_HEADINGS = {
-    "PROFIL": "PROFIL",
-    "KENNTNISSE": "KENNTNISSE",
-    "SPRACHKENNTNISSE": "SPRACHKENNTNISSE",
-    "SPRACHEN": "SPRACHKENNTNISSE",
-    "BERUFSERFAHRUNGEN": "BERUFSERFAHRUNGEN",
-    "BERUFSERFAHRUNG": "BERUFSERFAHRUNGEN",
-    "AUSBILDUNG": "AUSBILDUNG",
-    "PROJEKTE UND VERANSTALTUNGEN": "PROJEKTE UND VERANSTALTUNGEN",
-    "PROJEKTE & VERANSTALTUNGEN": "PROJEKTE UND VERANSTALTUNGEN",
-    "PROJEKTE LEITUNG": "PROJEKTE LEITUNG",
-    "PROJEKT LEITUNG": "PROJEKTE LEITUNG",
-    "PROJEKTLEITUNG": "PROJEKTE LEITUNG",
-    "PROJEKTELEITUNG": "PROJEKTE LEITUNG",
-    "PROJEKTLEITUNGEN": "PROJEKTE LEITUNG",
-    "ZUSÄTZLICHE QUALIFIKATIONEN": "ZUSÄTZLICHE QUALIFIKATIONEN",
-    "ZUSATZLICHE QUALIFIKATIONEN": "ZUSÄTZLICHE QUALIFIKATIONEN",
-    "ZUSATZLICHE QUALIFIKATION": "ZUSÄTZLICHE QUALIFIKATIONEN",
-    "ZUSÄTZLICHE QUALIFIKATION": "ZUSÄTZLICHE QUALIFIKATIONEN",
-}
-
-
-def normalize_heading(text):
-    """Normalize text to uppercase heading format."""
-    chars = []
-    for ch in text:
-        if ch.isalpha() or ch.isdigit() or ch.isspace() or ch in ["&", "-", "/"]:
-            chars.append(ch.upper())
-        else:
-            chars.append(" ")
-    joined = "".join(chars)
-    parts = [segment for segment in joined.split() if segment]
-    return " ".join(parts)
-
-
-def is_probable_heading(text):
-    """Heuristic to detect headings written in uppercase."""
-    if not text:
-        return False
-    stripped = text.strip()
-    if not stripped or stripped.startswith("\u2022") or stripped.startswith("- "):
-        return False
-    if not stripped[0].isalpha():
-        return False
-    if any(ch.islower() for ch in stripped):
-        return False
-    letters = sum(1 for ch in stripped if ch.isalpha())
-    return letters >= 3 and len(stripped) <= 60
-
-
-LANGUAGE_PATTERNS = [
-    "türkisch", "deutsch", "englisch", "französisch", "spanisch",
-    "italienisch", "russisch", "arabisch", "chinesisch", "japanisch",
-    "muttersprache", "niveau", "a1", "a2", "b1", "b2", "c1", "c2",
-]
-
-
 def parse_cv_content(text):
     """Identify CV sections and map their content."""
     for heading in EXPECTED_HEADINGS:
@@ -425,178 +417,3 @@ def parse_cv_content(text):
                     section_order.append("SPRACHKENNTNISSE")
 
     return cleaned_sections
-
-
-def extract_text_from_cv(filepath):
-    """Extract text from the specified file path."""
-    try:
-        file_ext = os.path.splitext(filepath)[1].lower()
-        text = ""
-        if file_ext == ".pdf":
-            with pdfplumber.open(filepath) as pdf:
-                for page in pdf.pages:
-                    text += page.extract_text() or ""
-        elif file_ext in [".doc", ".docx"]:
-            doc = docx.Document(filepath)
-            for para in doc.paragraphs:
-                text += para.text + "\n"
-        return text
-    except (OSError, ValueError) as exc:
-        print(f"Text extraction error: {exc}")
-        return None
-
-
-def extract_and_save_images_from_pdf(filepath, output_folder):
-    """Extract and save images from the specified PDF file."""
-    found_images = []
-    try:
-        doc = fitz.open(filepath)
-        for i in range(len(doc)):
-            images = doc.get_page_images(i)
-            if not images:
-                continue
-
-            for _idx, img in enumerate(images):
-                xref = img[0]
-                base_image = doc.extract_image(xref)
-                image_data = base_image["image"]
-
-                if not image_data or len(image_data) < 100:
-                    continue
-
-                filename = os.path.basename(filepath)
-                try:
-                    img_stream = io.BytesIO(image_data)
-                    pil_img = Image.open(img_stream)
-                    if pil_img.width > 100 and pil_img.height > 100:
-                        image_filename = (
-                            f"{os.path.splitext(filename)[0]}"
-                            f"_profile_photo.png"
-                        )
-                        image_path = os.path.join(
-                            output_folder, image_filename
-                        )
-
-                        with open(image_path, "wb") as f_out:
-                            f_out.write(image_data)
-
-                        found_images.append(image_filename)
-                        return [image_filename]
-
-                except (OSError, ValueError) as exc:
-                    print(f"Image size check error: {exc}")
-                    continue
-
-    except (OSError, RuntimeError) as exc:
-        print(f"Error extracting image from PDF: {exc}")
-
-    print("A profile photo could not be extracted from the CV.")
-    return found_images
-
-
-def extract_contact_info(text):
-    """Extract contact information (email, phone, address) from CV text."""
-    contact_info = {}
-    lines = text.split("\n")
-
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-
-        if "@" in line and "." in line and "email" not in contact_info:
-            words = line.split()
-            for word in words:
-                if "@" in word and "." in word:
-                    contact_info["email"] = word
-                    break
-
-        elif line.startswith("+") and "phone" not in contact_info:
-            digit_count = sum(1 for c in line if c.isdigit())
-            if digit_count >= 8:
-                contact_info["phone"] = line
-
-        elif "address" not in contact_info:
-            has_letters = any(c.isalpha() for c in line)
-            has_numbers = any(c.isdigit() for c in line)
-
-            if has_letters and has_numbers and len(line) > 10 and not line.isupper():
-                words = line.split()
-                has_postal = False
-                for word in words:
-                    clean_word = word.replace(",", "").replace(".", "")
-                    if clean_word.isdigit() and len(clean_word) in [4, 5]:
-                        has_postal = True
-                        break
-
-                if has_postal:
-                    address = line
-                    section_words = [
-                        "PROFIL", "KENNTNISSE",
-                        "BERUFSERFAHRUNG", "AUSBILDUNG",
-                    ]
-                    for section_word in section_words:
-                        if address.upper().endswith(section_word):
-                            address = address[: -(len(section_word))].strip()
-
-                    contact_info["address"] = address
-
-    return contact_info
-
-
-def looks_like_name(label):
-    """Check if a section label looks like a person's name."""
-    if not label:
-        return False
-    if label != label.upper():
-        return False
-    words = [w for w in label.split() if w]
-    if len(words) < 2 or len(words) > 5:
-        return False
-    return all(any(ch.isalpha() for ch in word) for word in words)
-
-
-_UNWANTED_NAME_TOKENS = {
-    "BEWERBUNG", "BEWERBUNGS",
-    "ENGLISCHLEHRERIN", "ENGLISCH LEHRERIN",
-    "ENGILISCHLEHRERIN", "ENGLISHLEHRERIN",
-    "ENGLISH LEHRERIN", "LEHRERIN", "ESL", "TEACHER",
-}
-
-
-def clean_applicant_label(label):
-    """Remove unwanted job-title tokens from the end of a name label."""
-    tokens = [t for t in label.split() if t]
-    while tokens and tokens[-1] in _UNWANTED_NAME_TOKENS:
-        tokens.pop()
-    return " ".join(tokens) if tokens else label
-
-
-_UNWANTED_BLOCK_TEXTS = {
-    "BEWERBUNG", "ENGLISCHLEHRERIN", "ENGLISCH LEHRERIN",
-    "ENGILISCHLEHRERIN", "ENGLISHLEHRERIN",
-    "ENGLISH LEHRERIN", "LEHRERIN", "ESL",
-}
-
-
-def filter_name_blocks(blocks):
-    """Remove unwanted text entries from name-section blocks."""
-    filtered = []
-    for block in blocks or []:
-        details = []
-        for detail in block.get("details", []):
-            text = (
-                detail.get("text") if isinstance(detail, dict) else str(detail)
-            )
-            if text and text.upper().strip() in _UNWANTED_BLOCK_TEXTS:
-                continue
-            details.append(detail)
-        block["details"] = details
-        if (
-            block.get("title")
-            or block.get("date")
-            or block.get("org")
-            or details
-        ):
-            filtered.append(block)
-    return filtered

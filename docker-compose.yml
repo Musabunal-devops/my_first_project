@@ -9,3 +9,5 @@ services:
     volumes:
       - ./uploads:/app/uploads
       - ./instance:/app/instance
+      - ./static:/app/static
+      - ./templates:/app/templates

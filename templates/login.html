@@ -8,7 +8,8 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f0f2f5;
+            background: url("{{ url_for('static', filename='login_bg.png') }}") no-repeat center center fixed;
+            background-size: cover;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -16,10 +17,11 @@
             margin: 0;
         }
         .container {
-            background-color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(10px);
             padding: 40px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
             text-align: center;
             max-width: 400px;
             width: 100%;
@@ -126,7 +128,7 @@
             {% endif %}
         {% endwith %}
 
-        <form action="{{ url_for('login') }}" method="post">
+        <form action="{{ url_for('auth.login') }}" method="post">
             <div class="form-group">
                 <label for="email">Email Address:</label>
                 <input type="email" id="email" name="email" required placeholder="example@email.com">
@@ -139,8 +141,8 @@
         </form>
 
         <div class="links">
-            <a href="{{ url_for('register') }}">Create Account</a>
-            <a href="{{ url_for('index') }}">← Homepage</a>
+            <a href="{{ url_for('auth.register') }}">Create Account</a>
+            <a href="{{ url_for('cv.index') }}">← Homepage</a>
         </div>
     </div>
 </body>

@@ -42,7 +42,7 @@
 
         <p class="text-center">Please upload your CV in PDF, DOC, or DOCX format.</p>
         
-        <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
+        <form action="{{ url_for('cv.upload_file') }}" method="post" enctype="multipart/form-data">
             <div class="mb-3">
                 <label for="file" class="form-label">Select File:</label>
                 <div class="custom-file-input-wrapper">
@@ -57,7 +57,7 @@
         </form>
 
         <hr>
-        <p class="text-center"><a href="{{ url_for('index') }}">Return to Homepage</a></p>
+        <p class="text-center"><a href="{{ url_for('cv.index') }}">Return to Homepage</a></p>
     </div>
 
     <script>

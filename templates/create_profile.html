@@ -428,7 +428,7 @@
                 <span>&#8592;</span> Back
             </a>
 
-            <img src="{{ url_for('uploaded_file_display', filename=photo_filename) if photo_filename else 'https://via.placeholder.com/140/0056b3/FFFFFF?text=FOTO' }}" 
+            <img src="{{ url_for('cv.uploaded_file_display', filename=photo_filename) if photo_filename else 'https://via.placeholder.com/140/0056b3/FFFFFF?text=FOTO' }}" 
                  class="profile-photo" 
                  alt="Profile Photo"
                  onclick="showProfileSection()"

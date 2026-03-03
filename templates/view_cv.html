@@ -42,16 +42,16 @@
 
         <hr class="my-4">
         <div class="d-grid gap-2">
-            <a href="{{ url_for('create_profile_page', filename=filename) }}" class="btn btn-primary btn-lg">Create Your Profile</a>
+            <a href="{{ url_for('cv.create_profile_page', filename=filename) }}" class="btn btn-primary btn-lg">Create Your Profile</a>
         </div>
-        <p class="text-center mt-3"><a href="{{ url_for('index') }}">Return to Homepage</a></p>
+        <p class="text-center mt-3"><a href="{{ url_for('cv.index') }}">Return to Homepage</a></p>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.getElementById('view-cv-btn').addEventListener('click', function() {
             const cvViewer = document.getElementById('cv-viewer');
-            const cvUrl = "{{ url_for('uploaded_file_display', filename=filename) }}";
+            const cvUrl = "{{ url_for('cv.uploaded_file_display', filename=filename) }}";
             
             // If it's a PDF file
             // cvViewer.innerHTML = `<embed src="${cvUrl}" type="application/pdf" width="100%" height="600px" />`;
