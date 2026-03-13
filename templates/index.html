@@ -23,7 +23,7 @@
         .bg-image {
             width: 100%;
             height: 100%;
-            object-fit: contain; /* Resmi bozmadan sığdırır */
+            object-fit: cover; /* Sayfayı tamamen kaplaması için 'cover' kullanıldı */
             display: block;
         }
 
@@ -92,16 +92,6 @@
     </style>
 </head>
 <body>
-
-    {% with messages = get_flashed_messages() %}
-    {% if messages %}
-    <ul class="flash-bar">
-        {% for message in messages %}
-        <li>{{ message }}</li>
-        {% endfor %}
-    </ul>
-    {% endif %}
-    {% endwith %}
 
     <div class="wrapper">
         <!-- Sadece resmi göster -->
