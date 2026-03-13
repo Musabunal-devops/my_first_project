@@ -7,7 +7,11 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f0f2f5;
+            background-image: url("{{ url_for('static', filename='create_account.png') }}");
+            background-size: cover; /* Back to cover to eliminate black bars */
+            background-position: center 20%; /* Shifted up slightly to see the face better while filling screen */
+            background-repeat: no-repeat;
+            background-attachment: fixed;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -15,27 +19,35 @@
             margin: 0;
         }
         .container {
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            background-color: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 20px 25px;
+            border-radius: 28px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
             text-align: center;
-            max-width: 400px;
-            width: 100%;
+            max-width: 360px; /* Increased from 320px to 360px to give inputs more width */
+            width: 95%;
+            color: #ffffff;
         }
         h1 {
-            color: #333;
-            margin-bottom: 25px;
+            color: #ffffff;
+            margin-bottom: 15px; /* Reduced margin from 25px to 15px */
+            font-size: 1.4rem; /* Slightly smaller font */
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.7);
         }
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 12px; /* Reduced margin from 18px to 12px */
             text-align: left;
         }
         label {
             display: block;
-            margin-bottom: 5px;
-            color: #555;
-            font-weight: bold;
+            margin-bottom: 4px; /* Reduced margin from 8px to 4px */
+            color: #ffffff;
+            font-weight: 500;
+            font-size: 0.9rem; /* Slightly smaller labels */
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
         }
 
         /* NEW: Wrapper for input and icon */
@@ -48,51 +60,74 @@
         input[type="text"],
         input[type="email"],
         input[type="password"] {
-            flex-grow: 1; /* Allow the input to fill the available space */
-            padding: 12px 10px; /* Top/bottom padding 12px, left/right padding 10px */
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            flex-grow: 1;
+            padding: 8px 12px; /* Reduced from 12px 15px to 8px 12px */
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px; /* Slightly smaller radius */
+            color: white;
             box-sizing: border-box;
-            /* NEW: Own padding to prevent overlapping the icon */
-            padding-right: 40px; /* To prevent overlapping the icon */
+            outline: none;
+            transition: all 0.3s ease;
+            font-size: 0.9rem; /* Slightly smaller text */
+        }
+        input[type="text"]::placeholder,
+        input[type="email"]::placeholder,
+        input[type="password"]::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="password"]:focus {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.5);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
         }
         .toggle-password {
-            position: absolute; /* Absolute positioning relative to the wrapper */
-            right: 15px; /* Distance from the right */
+            position: absolute;
+            right: 12px;
             cursor: pointer;
-            color: #888;
+            color: rgba(255, 255, 255, 0.7);
             user-select: none;
-            font-size: 1.2em;
+            font-size: 1.1em;
         }
         button {
-            background-color: #28a745;
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 5px;
+            background-color: transparent;
+            color: #ffffff; 
+            padding: 10px 20px; /* Slightly smaller padding */
+            border: 2px solid #ffffff; 
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 16px;
-            margin-top: 20px;
+            font-size: 15px; /* Slightly smaller font */
+            font-weight: bold;
+            margin-top: 15px; /* Reduced margin */
             width: 100%;
-            transition: background-color 0.3s ease;
+            transition: all 0.3s ease;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
         }
         button:hover {
-            background-color: #218838;
+            background-color: #ffffff;
+            color: #000000;
+            transform: translateY(-2px);
         }
         .back-link {
             display: block;
-            margin-top: 20px;
-            color: #007bff;
+            margin-top: 25px;
+            color: rgba(255, 255, 255, 0.9);
             text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.3s;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
         }
         .back-link:hover {
+            color: #ffffff;
             text-decoration: underline;
         }
-        .error-message {
-            color: red;
-            font-size: 0.9em;
-            margin-top: 5px;
-            text-align: left;
+        input[type="email"] {
+            width: 100%; /* Ensure it spans the full width of the container */
+            padding: 8px 12px;
+            font-size: 1rem; /* Slightly larger text for email */
         }
     </style>
 </head>
