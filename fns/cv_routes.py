@@ -1,14 +1,23 @@
+
 """CV-related routes: index, upload, view, create profile."""
 import os
 from flask import Blueprint, current_app, flash, redirect, render_template, request, send_from_directory, url_for
 from sqlalchemy.exc import IntegrityError
-from fns.extensions import db
-from fns.models import CV
-from fns.helpers import allowed_file
+from database.models import CV, db
 from fns.cv_extraction import extract_text_from_cv, extract_and_save_images_from_pdf
 from fns.cv_parsing import parse_section_blocks, parse_cv_content, EXPECTED_HEADINGS
 from fns.cv_contact import extract_contact_info
 from fns.cv_name_utils import looks_like_name, clean_applicant_label, filter_name_blocks
+
+# Helper function moved from helpers.py
+def allowed_file(filename, allowed_extensions):
+    """
+    Check if a file's extension is in the list of allowed extensions.
+    """
+    return (
+        "." in filename
+        and filename.rsplit(".", 1)[1].lower() in allowed_extensions
+    )
 
 cv_bp = Blueprint("cv", __name__)
 
