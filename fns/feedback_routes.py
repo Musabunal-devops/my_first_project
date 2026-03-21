@@ -1,8 +1,8 @@
 """Feedback API routes."""
 from flask import Blueprint, request
 from sqlalchemy.exc import IntegrityError
-from fns.extensions import db
-from fns.models import CV, Feedback
+from database.models import db
+from database.models import CV, Feedback
 
 feedback_bp = Blueprint("feedback", __name__)
 

@@ -28,9 +28,17 @@ Users can upload their CVs in PDF or Word formats. The system parses these docum
 3. **Access the Application:**
    Go to the following address in your browser: [http://localhost:5000](http://localhost:5000)
 
+### Database Connection (Optional):
+If you want to connect to the database using an external tool (like a local pgAdmin or DBeaver), use these credentials:
+- **Host:** `localhost`
+- **Port:** `5432`
+- **Database:** `cv_platform`
+- **User:** `user`
+- **Password:** `password`
+
 ### Notes
 - The database is automatically created when the application is first launched.
-- Uploaded files are stored in the `uploads/` folder, and the database is stored in the `instance/` folder (Docker persistent volumes).
+- Uploaded files are stored in the `uploads/` folder.
 - To stop, you can press `Ctrl+C` in the terminal or use the `docker-compose down` command.
 - The `SECRET_KEY` in `docker-compose.yml` is a hardcoded demo value for development purposes. In a production environment, it should be stored securely in a `.env` file.
 

@@ -1,8 +1,8 @@
 """Authentication routes: register, login."""
 from flask import Blueprint, flash, redirect, render_template, request, url_for
 from sqlalchemy.exc import IntegrityError
-from fns.extensions import db
-from fns.models import User
+from database.models import db
+from database.models import User
 
 auth_bp = Blueprint("auth", __name__)
 

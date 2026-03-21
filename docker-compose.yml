@@ -1,13 +1,29 @@
 services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: cv_platform
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
   web:
     build: .
     ports:
       - "5000:5000"
     environment:
-      - DATABASE_URI=sqlite:////app/instance/project.db
+      - DATABASE_URI=postgresql://user:password@db:5432/cv_platform
       - SECRET_KEY=dev-key-for-interview-showcase-123
     volumes:
       - ./uploads:/app/uploads
       - ./instance:/app/instance
       - ./static:/app/static
       - ./templates:/app/templates
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

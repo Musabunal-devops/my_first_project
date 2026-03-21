@@ -1,7 +1,10 @@
 """Database models for the CV Profile Builder application."""
 from datetime import datetime
 from werkzeug.security import check_password_hash, generate_password_hash
-from fns.extensions import db
+from flask_sqlalchemy import SQLAlchemy
+
+# Shared Flask extension
+db = SQLAlchemy()
 
 
 class User(db.Model):
